@@ -17,6 +17,9 @@ from mcpinspect.protocol.client import MCPClient
 from mcpinspect.scanner.drift import DriftDetector
 from mcpinspect.scanner.engine import ScanConfig, ScanEngine
 from mcpinspect.transport import TransportError, get_transport
+from mcpinspect.output import format_json, format_sarif, print_terminal_report
+from mcpinspect.auditor.engine import audit as run_audit
+from datetime import datetime
 
 app = typer.Typer(
     name="mcpinspect",
@@ -132,6 +135,8 @@ async def _scan_async(
     config: ScanConfig,
     output_file: Path | None,
 ) -> None:
+    import time
+    start_time = time.time()
     engine = ScanEngine(config)
 
     console.print(f"\n[bold cyan]mcpinspect[/bold cyan] scanning [yellow]{config.target}[/yellow]\n")
@@ -146,74 +151,26 @@ async def _scan_async(
         console.print(f"[bold red]Scan failed:[/bold red] {exc}")
         raise typer.Exit(code=2)
 
-    if config.output_format == "json" or output_file:
-        output_data = {
-            "score": score.score,
-            "verdict": score.verdict,
-            "total_checks": score.total_checks_run,
-            "findings": {k.value: v for k, v in score.findings.items()},
-            "drift_detected": score.drift_detected,
-            "diffs": [
-                {
-                    "tool_name": d.tool_name,
-                    "field": d.field,
-                    "before": d.before,
-                    "after": d.after,
-                    "severity": d.severity.value,
-                }
-                for d in diffs
-            ],
-            "results": [
-                {
-                    "check_id": r.check_id,
-                    "title": r.title,
-                    "severity": r.severity.value,
-                    "passed": r.passed,
-                    "finding": r.finding,
-                    "evidence": r.evidence,
-                    "location": r.location,
-                    "remediation": r.remediation,
-                }
-                for r in results
-            ],
-        }
+    run_time_sec = time.time() - start_time
+    timestamp = datetime.now().isoformat()
+
+    if config.output_format == "json":
+        output_data = format_json(config.target, timestamp, score, results, diffs)
         json_str = json.dumps(output_data, indent=2, ensure_ascii=False)
         if output_file:
             output_file.write_text(json_str + "\n", encoding="utf-8")
-            console.print(f"  [green]✓[/green] Written to {output_file}")
         else:
-            console.print_json(data=output_data)
+            console.print_json(json_str)
+    elif config.output_format == "sarif":
+        output_data = format_sarif(config.target, results, diffs)
+        json_str = json.dumps(output_data, indent=2, ensure_ascii=False)
+        if output_file:
+            output_file.write_text(json_str + "\n", encoding="utf-8")
+        else:
+            console.print_json(json_str)
     else:
-        # Terminal format
-        console.print(f"  [bold]Verdict:[/bold] {score.verdict} (Score: {score.score})")
-        console.print(f"  [bold]Checks run:[/bold] {score.total_checks_run}")
-        
-        if score.drift_detected:
-            console.print("\n[bold red]DRIFT DETECTED![/bold red]")
-            for d in diffs:
-                console.print(f"  • {d.tool_name} ({d.field} changed)")
-        
-        failed_results = [r for r in results if not r.passed]
-        if failed_results:
-            table = Table(title="\nFindings", show_header=True, header_style="bold magenta")
-            table.add_column("Severity")
-            table.add_column("ID")
-            table.add_column("Location")
-            table.add_column("Finding")
+        print_terminal_report(config.target, timestamp, score, results, diffs, run_time_sec)
 
-            for r in failed_results:
-                sev_color = "red" if r.severity.value == "critical" else "yellow" if r.severity.value == "high" else "blue"
-                table.add_row(
-                    f"[{sev_color}]{r.severity.value.upper()}[/{sev_color}]",
-                    r.check_id,
-                    r.location,
-                    r.finding,
-                )
-            console.print(table)
-        else:
-            console.print("\n[bold green]No issues found![/bold green]")
-
-    console.print()
     if score.verdict == "CRITICAL":
         raise typer.Exit(code=2)
     elif score.verdict == "WARN":
@@ -228,8 +185,8 @@ async def _scan_async(
 
 @app.command()
 def audit(
-    config_path: Path = typer.Argument(
-        ...,
+    config_path: Optional[Path] = typer.Argument(
+        None,
         help="Path to MCP config file (mcp.json, claude_desktop_config.json, etc.).",
         exists=True,
         readable=True,
@@ -251,8 +208,79 @@ def audit(
     Checks for shell injection in commands, hardcoded secrets,
     and over-privileged flags — purely static analysis.
     """
-    console.print("[bold red]audit: not implemented[/bold red]")
-    raise typer.Exit(code=1)
+    if not config_path and not discover:
+        console.print("[bold red]Error:[/bold red] Must provide a config_path or use --discover.")
+        raise typer.Exit(code=1)
+
+    anyio.run(_audit_async, config_path, discover, output_format)
+
+
+async def _audit_async(config_path: Path | None, discover: bool, output_format: str) -> None:
+    import time
+    from mcpinspect.scanner.scoring import ScanScore
+    from mcpinspect.checks.base import Severity
+    
+    start_time = time.time()
+    
+    with console.status("[bold green]Running config audit…"):
+        report = await run_audit(config_path, discover)
+
+    # Convert report findings to flat list of results for formatters
+    results = []
+    for server_findings in report.findings.values():
+        results.extend(server_findings)
+
+    timestamp = datetime.now().isoformat()
+    run_time_sec = time.time() - start_time
+    
+    # Create a dummy score object for output formatters
+    score = ScanScore(
+        total_checks_run=len(results),
+        findings={Severity.CRITICAL: 0, Severity.HIGH: 0, Severity.MEDIUM: 0, Severity.LOW: 0},
+        score=0.0,
+        verdict=report.verdict,
+        drift_detected=False,
+        probe_enabled=False,
+    )
+    for r in results:
+        score.findings[r.severity] += 1
+        
+    target_str = str(config_path) if config_path else "auto-discovered"
+
+    if output_format == "json":
+        output_data = format_json(target_str, timestamp, score, results, [])
+        console.print_json(json.dumps(output_data, indent=2, ensure_ascii=False))
+    elif output_format == "sarif":
+        output_data = format_sarif(target_str, results, [])
+        console.print_json(json.dumps(output_data, indent=2, ensure_ascii=False))
+    else:
+        console.print(f"\n[bold cyan]mcpinspect v{__version__}[/bold cyan] | [yellow]audit: {target_str}[/yellow] | [dim]{timestamp}[/dim]\n")
+        console.print(f"Audited {report.total_servers} servers.")
+        if results:
+            table = Table(title="Findings", show_header=True, header_style="bold magenta")
+            table.add_column("Severity")
+            table.add_column("ID")
+            table.add_column("Location", style="cyan")
+            table.add_column("Finding")
+
+            for r in results:
+                sev_color = "red" if r.severity.value == "critical" else "yellow" if r.severity.value == "high" else "blue"
+                table.add_row(
+                    f"[{sev_color}]{r.severity.value.upper()}[/{sev_color}]",
+                    r.check_id,
+                    r.location,
+                    r.finding,
+                )
+            console.print(table)
+        else:
+            console.print("[bold green]No issues found![/bold green]")
+            
+    if report.verdict == "CRITICAL":
+        raise typer.Exit(code=2)
+    elif report.verdict == "WARN":
+        raise typer.Exit(code=1)
+    else:
+        raise typer.Exit(code=0)
 
 
 # ======================================================================
