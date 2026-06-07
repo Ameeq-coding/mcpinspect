@@ -27,7 +27,7 @@ async def test_drift_detector_clean():
     )
     client = MockClient([m1, m1])
     detector = DriftDetector(client, interval_seconds=0.0)
-    diffs = await detector.detect()
+    diffs = await detector.detect(m1)
     assert not diffs
 
 
@@ -45,7 +45,7 @@ async def test_drift_detector_rug_pull():
     )
     client = MockClient([m1, m2])
     detector = DriftDetector(client, interval_seconds=0.0)
-    diffs = await detector.detect()
+    diffs = await detector.detect(m1)
     
     assert len(diffs) == 1
     assert diffs[0].tool_name == "t1"

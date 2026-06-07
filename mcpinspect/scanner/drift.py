@@ -36,17 +36,15 @@ class DriftDetector:
         self.client = client
         self.interval = interval_seconds
 
-    async def detect(self) -> list[DescriptionDiff]:
-        """Fetch twice and return any differences."""
-        manifest_1 = await self.client.fetch_manifest()
-        
+    async def detect(self, baseline_manifest: ServerManifest) -> list[DescriptionDiff]:
+        """Wait, fetch again, and return any differences."""
         if self.interval > 0:
             await anyio.sleep(self.interval)
             
         manifest_2 = await self.client.fetch_manifest()
 
         diffs: list[DescriptionDiff] = []
-        tools_1 = {t.name: t for t in manifest_1.tools}
+        tools_1 = {t.name: t for t in baseline_manifest.tools}
         tools_2 = {t.name: t for t in manifest_2.tools}
 
         # Check for tools that were added in the second fetch

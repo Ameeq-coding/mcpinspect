@@ -35,12 +35,12 @@ class ScanEngine:
 
     async def run(self) -> tuple[list[CheckResult], list[DescriptionDiff], ScanScore]:
         """Run the full scan pipeline."""
-        transport = get_transport(
-            self.config.target,
-            # Pass custom headers if http transport supports it.
-            # get_transport typically passes kwargs to the underlying transport
-            headers=self.config.headers if self.config.target.startswith("http") else None
-        )
+        kwargs = {}
+        if self.config.target.startswith("http"):
+            if self.config.headers:
+                kwargs["headers"] = self.config.headers
+
+        transport = get_transport(self.config.target, **kwargs)
         
         # Override the default connect timeout if possible, though currently
         # HttpSseTransport has it hardcoded, but we can manage timeout at the probe level.
@@ -72,7 +72,7 @@ class ScanEngine:
             diffs: list[DescriptionDiff] = []
             if self.config.drift_check:
                 detector = DriftDetector(client, interval_seconds=self.config.drift_interval)
-                diffs = await detector.detect()
+                diffs = await detector.detect(manifest)
 
             # 5. Score
             scan_score = score(results, diffs, probe_enabled=self.config.probe)

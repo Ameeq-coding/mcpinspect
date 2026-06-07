@@ -314,7 +314,8 @@ async def _diff_async(target: str, interval: float) -> None:
         detector = DriftDetector(client, interval_seconds=interval)
         
         console.print(f"Fetching first manifest for {target}...")
-        diffs = await detector.detect()
+        manifest = await client.fetch_manifest()
+        diffs = await detector.detect(manifest)
         
         if diffs:
             console.print("[bold red]Drift detected![/bold red]")

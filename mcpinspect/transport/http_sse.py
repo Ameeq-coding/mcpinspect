@@ -24,13 +24,14 @@ class HttpSseTransport(MCPTransport):
 
     transport_type = "http_sse"
 
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, headers: dict[str, str] | None = None) -> None:
         super().__init__()
         self.url: str = url.rstrip("/")
         self.insecure: bool = url.startswith("http://")
         self._client: httpx.AsyncClient | None = None
         self._post_url: str = self.url
         self._session_id: str | None = None
+        self._custom_headers = headers or {}
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -122,6 +123,7 @@ class HttpSseTransport(MCPTransport):
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
         }
+        headers.update(self._custom_headers)
         if self._session_id:
             headers["Mcp-Session-Id"] = self._session_id
         return headers
