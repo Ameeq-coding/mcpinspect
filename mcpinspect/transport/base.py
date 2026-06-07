@@ -97,7 +97,8 @@ class MCPTransport(ABC):
                 f"JSON-RPC error {err.get('code', '?')}: {err.get('message', 'unknown')}",
                 code=err.get("code"),
             )
-        return data.get("result", {})
+        from typing import cast
+        return cast(dict[str, Any], data.get("result", {}))
 
     # ------------------------------------------------------------------
     # Abstract interface

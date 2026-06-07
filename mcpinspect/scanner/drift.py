@@ -9,6 +9,7 @@ import anyio
 
 from mcpinspect.checks.base import Severity
 from mcpinspect.protocol.client import MCPClient
+from mcpinspect.protocol.models import ServerManifest
 
 
 @dataclass

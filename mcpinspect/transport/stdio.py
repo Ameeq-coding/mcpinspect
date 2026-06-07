@@ -149,7 +149,8 @@ class StdioTransport(MCPTransport):
                 continue
 
             if msg["id"] == expected_id:
-                return msg
+                from typing import cast
+                return cast(dict[str, Any], msg)
 
             logger.warning(
                 "Unexpected response id %s (wanted %s), skipping",

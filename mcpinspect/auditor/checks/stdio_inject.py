@@ -10,7 +10,7 @@ SHELL_META = re.compile(r'[;&|`$<>]|\$\(|\|\|')
 
 def check_stdio_inject(server: AuditServer, config_path: str) -> list[CheckResult]:
     """Scan every string in command + args for shell metacharacters."""
-    results = []
+    results: list[CheckResult] = []
     
     if server.transport != "stdio":
         return results

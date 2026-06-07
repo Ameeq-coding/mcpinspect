@@ -1,58 +1,81 @@
 # mcpinspect
 
-Offline-first, CI-native MCP security scanner.  
-No telemetry, no cloud API calls, ever. Apache 2.0 licence.
+MCP security scanner. Offline-first. No telemetry. CI-native.
 
-## Why this exists
+**What makes it different from mcp-scan / Cisco mcp-scanner:**
+- Scans tool RESPONSES (not just descriptions) — catches the GitHub/Supabase 
+  class of attacks where poisoning hides in data, not metadata
+- Rug-pull drift detection across the full session, not just on connect
+- SARIF output for GitHub/GitLab Security tab integration
+- Zero cloud dependencies — runs fully offline, your config never leaves your machine
 
-`mcp-scan` (Snyk) exists but only detects ~3% of real malicious servers because it scans tool **descriptions** and ignores tool **responses**, resources, and prompts.
-
-The real attack surface has three parts:
-
-1. **What a server CLAIMS it does** (tool descriptions) — already covered by others
-2. **What a server RETURNS when called** (response-content injection) — NOT covered
-3. **Whether descriptions CHANGE between calls** (rug-pull drift) — partially covered
-
-**Our differentiator:** we are the only scanner that covers all three in one offline pass, with zero LLM API dependency.
-
-## Installation
-
+## Install
 ```bash
-poetry install
+pip install mcpinspect
 ```
 
 ## Usage
-
 ```bash
-# Scan a live MCP server
-mcpinspect scan http://localhost:8080
+mcpinspect scan https://your-mcp-server.com
+mcpinspect scan stdio:///usr/local/bin/my-mcp-server
+mcpinspect audit                    # auto-discovers Claude/Cursor/Windsurf configs
+mcpinspect audit ~/.cursor/mcp.json
+mcpinspect diff https://... --interval 60   # watch for rug-pulls
 
-# Audit a local config file (no network)
-mcpinspect audit ~/.config/claude/mcp.json
-
-# Diff two manifest snapshots
-mcpinspect diff baseline.json current.json
+# CI usage (exit code 2 = CRITICAL, blocks the build)
+mcpinspect scan https://... --sarif > mcp-results.sarif
 ```
 
-## Check IDs
+## What it checks
 
-| ID       | Category    | Description                                         |
-|----------|-------------|-----------------------------------------------------|
-| MCI-D01  | Description | Prompt injection patterns in descriptions            |
-| MCI-D02  | Description | Exfiltration instructions in descriptions            |
-| MCI-D03  | Description | Unicode homoglyph / invisible characters             |
-| MCI-D04  | Description | Tool name shadows dangerous built-in                 |
-| MCI-D05  | Description | Schema fields as instruction channels                |
-| MCI-R01  | Response    | Injection patterns in tool responses                 |
-| MCI-R02  | Response    | Exfiltration URLs / webhooks in responses            |
-| MCI-R03  | Response    | Data leak (secrets/PII) in responses                 |
-| MCI-R04  | Response    | Cross-tool redirect in responses                     |
-| MCI-X01  | Drift       | Rug-pull: description changed between fetches        |
-| MCI-X02  | Drift       | Cross-server tool reference                          |
-| ACI-01   | Config      | Shell metacharacters in command/args                 |
-| ACI-02   | Config      | Hardcoded secrets in env                             |
-| ACI-03   | Config      | Over-privileged flags (--allow-all)                  |
+| Check ID | Category | What it catches | Severity |
+| :--- | :--- | :--- | :--- |
+| **MCI-D01** | Description | Prompt injection in tool/resource/prompt text | CRITICAL |
+| **MCI-D02** | Description | Exfiltration instructions (file paths + send verbs) | CRITICAL |
+| **MCI-D03** | Description | Unicode homoglyph / invisible characters | HIGH |
+| **MCI-D04** | Description | Tool name shadowing dangerous built-ins | HIGH |
+| **MCI-D05** | Description | Schema fields used as instruction channels | HIGH |
+| **MCI-R01** | Response | Injection patterns in tool response content | CRITICAL |
+| **MCI-R02** | Response | Exfil URLs / webhook patterns in responses | HIGH |
+| **MCI-R03** | Response | Unexpected secrets/keys in response to canary | CRITICAL |
+| **MCI-R04** | Response | Response instructs agent to call another tool | HIGH |
+| **MCI-X01** | Drift | Tool description changed mid-session (rug-pull) | CRITICAL |
+| **MCI-X02** | Drift | New tool appeared after initial approval | CRITICAL |
+| **ACI-01** | Config | Shell metacharacters in STDIO command args | CRITICAL |
+| **ACI-02** | Config | Hardcoded secrets in env block | HIGH |
+| **ACI-03** | Config | Over-privileged permission flags | MEDIUM |
 
-## Licence
+## GitHub Actions example
 
-Apache 2.0
+```yaml
+name: MCP Security Scan
+on: [push, pull_request]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install mcpinspect
+        run: pip install mcpinspect
+        
+      - name: Scan MCP Server
+        run: mcpinspect scan stdio:///usr/local/bin/my-mcp-server --sarif > results.sarif || true
+        
+      - name: Upload SARIF report
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: mcpinspect
+```
+
+## Limitations (be honest)
+
+- Response checks require `--probe` (default on). If a tool errors on canary input, that tool's responses aren't checked. Use `--probe-args` to customize.
+- Drift detection takes 20s extra (two-pass). Use `--no-drift` in fast CI.
+- Pattern matching has false positives on documentation-heavy tool descriptions. Use `--ignore-check MCI-D01` to suppress specific checks.
+- Does not detect attacks that require semantic understanding of tool behaviour. For that, see Cisco mcp-scanner (LLM-assisted) or Snyk Agent Scan.

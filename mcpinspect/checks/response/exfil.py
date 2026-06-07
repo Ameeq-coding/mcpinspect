@@ -72,15 +72,15 @@ class ResponseExfilCheck(Check):
                 )
 
             # --- Webhook keywords -----------------------------------------
-            match = WEBHOOK_WORDS.search(text)
-            if match:
+            wh_match = WEBHOOK_WORDS.search(text)
+            if wh_match:
                 results.append(
                     self._fail(
                         finding=(
-                            f"Webhook/exfil keyword '{match.group()}' in "
+                            f"Webhook/exfil keyword '{wh_match.group()}' in "
                             f"response from '{resp.tool_name}'."
                         ),
-                        evidence=match.group(0),
+                        evidence=wh_match.group(0),
                         location=location,
                         severity=Severity.MEDIUM,
                         remediation=(

@@ -8,6 +8,7 @@ from mcpinspect import __version__
 from mcpinspect.checks.base import CheckResult
 from mcpinspect.scanner.drift import DescriptionDiff
 from mcpinspect.scanner.scoring import ScanScore
+from mcpinspect.checks.base import Severity
 
 
 def format_json(
@@ -27,10 +28,10 @@ def format_json(
         "probe_enabled": score.probe_enabled,
         "drift_detected": score.drift_detected,
         "summary": {
-            "critical": score.findings.get("critical", 0),
-            "high": score.findings.get("high", 0),
-            "medium": score.findings.get("medium", 0),
-            "low": score.findings.get("low", 0),
+            "critical": score.findings.get(Severity.CRITICAL, 0),
+            "high": score.findings.get(Severity.HIGH, 0),
+            "medium": score.findings.get(Severity.MEDIUM, 0),
+            "low": score.findings.get(Severity.LOW, 0),
         },
         "findings": [
             {

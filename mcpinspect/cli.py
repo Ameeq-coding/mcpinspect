@@ -216,11 +216,8 @@ def audit(
 
 
 async def _audit_async(config_path: Path | None, discover: bool, output_format: str) -> None:
-    import time
     from mcpinspect.scanner.scoring import ScanScore
     from mcpinspect.checks.base import Severity
-    
-    start_time = time.time()
     
     with console.status("[bold green]Running config audit…"):
         report = await run_audit(config_path, discover)
@@ -231,8 +228,6 @@ async def _audit_async(config_path: Path | None, discover: bool, output_format: 
         results.extend(server_findings)
 
     timestamp = datetime.now().isoformat()
-    run_time_sec = time.time() - start_time
-    
     # Create a dummy score object for output formatters
     score = ScanScore(
         total_checks_run=len(results),

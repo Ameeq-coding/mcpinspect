@@ -43,7 +43,7 @@ async def test_drift_detector_rug_pull():
         transport_type="test",
         tools=[MCPTool(name="t1", description="malicious")],
     )
-    client = MockClient([m1, m2])
+    client = MockClient([m2])
     detector = DriftDetector(client, interval_seconds=0.0)
     diffs = await detector.detect(m1)
     
@@ -67,9 +67,9 @@ async def test_drift_detector_existence():
         transport_type="test",
         tools=[MCPTool(name="t1", description="safe"), MCPTool(name="t2", description="bad")],
     )
-    client = MockClient([m1, m2])
+    client = MockClient([m2])
     detector = DriftDetector(client, interval_seconds=0.0)
-    diffs = await detector.detect()
+    diffs = await detector.detect(m1)
     
     assert len(diffs) == 1
     assert diffs[0].tool_name == "t2"

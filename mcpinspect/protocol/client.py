@@ -143,9 +143,9 @@ class MCPClient:
         key: str,
         model_cls: type,
         max_pages: int = 50,
-    ) -> list:
+    ) -> list[Any]:
         """Generic paginated listing for any MCP list method."""
-        items: list = []
+        items: list[Any] = []
         cursor: str | None = None
 
         for _ in range(max_pages):
@@ -234,7 +234,7 @@ class MCPClient:
         """Derive a human-readable target label."""
         transport = self.transport
         if hasattr(transport, "url"):
-            return transport.url
+            return str(getattr(transport, "url"))
         if hasattr(transport, "command"):
-            return " ".join(transport.command)
+            return " ".join(getattr(transport, "command"))
         return "unknown"

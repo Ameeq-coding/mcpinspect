@@ -51,7 +51,7 @@ class HttpSseTransport(MCPTransport):
 
         # --- attempt streamable HTTP first --------------------------------
         try:
-            result = await self._initialize_handshake()
+            await self._initialize_handshake()
             return
         except TransportError:
             raise
@@ -149,7 +149,8 @@ class HttpSseTransport(MCPTransport):
         if "text/event-stream" in content_type:
             return self._extract_sse_result(response.text, request["id"])
 
-        return response.json()
+        from typing import cast
+        return cast(dict[str, Any], response.json())
 
     async def _initialize_handshake(self) -> dict[str, Any]:
         """Send ``initialize`` + ``notifications/initialized``."""

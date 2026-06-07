@@ -83,9 +83,10 @@ def print_terminal_report(
         console.print("[dim]Probe status: Probes disabled (--no-probe)[/dim]")
 
     # 7. Footer
-    c = score.findings.get("critical", 0)
-    h = score.findings.get("high", 0)
-    m = score.findings.get("medium", 0)
-    l = score.findings.get("low", 0)
-    summary = f"{c} Critical | {h} High | {m} Medium | {l} Low"
+    from mcpinspect.checks.base import Severity
+    c = score.findings.get(Severity.CRITICAL, 0)
+    h = score.findings.get(Severity.HIGH, 0)
+    m = score.findings.get(Severity.MEDIUM, 0)
+    low_count = score.findings.get(Severity.LOW, 0)
+    summary = f"{c} Critical | {h} High | {m} Medium | {low_count} Low"
     console.print(f"\n[bold]Summary:[/bold] {summary}  |  [dim]Runtime: {run_time_sec:.1f}s[/dim]\n")

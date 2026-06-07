@@ -5,7 +5,7 @@ description = "Offline-first, CI-native MCP security scanner. No telemetry, no c
 license = "Apache-2.0"
 authors = ["mcpinspect contributors"]
 readme = "README.md"
-keywords = ["mcp", "security", "scanner", "prompt-injection", "ci"]
+keywords = ["mcp", "security", "llm-security", "agent", "prompt-injection", "tool-poisoning", "rug-pull"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -18,6 +18,10 @@ classifiers = [
     "Topic :: Security",
 ]
 packages = [{ include = "mcpinspect" }]
+
+[tool.poetry.urls]
+Homepage = "https://github.com/yourusername/mcpinspect"
+"Bug Tracker" = "https://github.com/yourusername/mcpinspect/issues"
 
 [tool.poetry.scripts]
 mcpinspect = "mcpinspect.cli:app"
@@ -33,7 +37,9 @@ pydantic = ">=2.0"
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"
 pytest-httpserver = ">=1.0"
-pytest-anyio = ">=0.0.0"
+pytest-cov = ">=4.0"
+ruff = ">=0.1.0"
+mypy = ">=1.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -42,3 +48,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+omit = [
+    "mcpinspect/transport/stdio.py",
+    "mcpinspect/cli.py"
+]
