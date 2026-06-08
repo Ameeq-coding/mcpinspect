@@ -5,9 +5,8 @@ Every test uses synthetic manifests — no network, no external deps.
 
 from __future__ import annotations
 
-import pytest
 
-from mcpinspect.checks.base import CheckResult, Severity
+from mcpinspect.checks.base import Severity
 from mcpinspect.checks.description.injection import PromptInjectionCheck
 from mcpinspect.checks.description.exfil import ExfiltrationPatternCheck
 from mcpinspect.checks.description.homoglyph import HomoglyphCheck
@@ -289,7 +288,6 @@ class TestShadowTool:
         m = _manifest(tools=[
             MCPTool(name="read-file", description="Reads markdown content"),
         ])
-        results = [r for r in self.check.run(m) if not r.passed]
         # "read_file" after normalization matches dangerous name
         # But description contains "read" → expected semantics
         # Should pass because the description has the expected keyword

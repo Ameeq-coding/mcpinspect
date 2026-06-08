@@ -5,7 +5,6 @@ Every test uses synthetic data — no network, no external deps.
 
 from __future__ import annotations
 
-import pytest
 
 from mcpinspect.checks.base import Severity
 from mcpinspect.checks.response.injection import ResponseInjectionCheck
@@ -13,7 +12,7 @@ from mcpinspect.checks.response.exfil import ResponseExfilCheck
 from mcpinspect.checks.response.data_leak import DataLeakCheck
 from mcpinspect.checks.response.redirect import CrossToolRedirectCheck
 from mcpinspect.checks import run_all, RESPONSE_CHECKS
-from mcpinspect.scanner.probes import ToolProber, CANARY_ARGS_BY_TYPE
+from mcpinspect.scanner.probes import ToolProber
 from mcpinspect.protocol.models import (
     MCPTool,
     ServerManifest,
@@ -388,7 +387,6 @@ class TestRunAllResponses:
 
     def test_description_and_response_checks_together(self) -> None:
         """run_all with ALL checks should work on both manifest and responses."""
-        from mcpinspect.checks import ALL_CHECKS
 
         m = _manifest(tools=[
             MCPTool(

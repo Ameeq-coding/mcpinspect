@@ -7,7 +7,6 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from typing import Any
 
-import anyio
 import pytest
 
 from mcpinspect.transport import get_transport
@@ -17,8 +16,6 @@ from mcpinspect.transport.base import TransportError
 from mcpinspect.protocol.client import MCPClient
 from mcpinspect.protocol.models import (
     MCPTool,
-    MCPResource,
-    MCPPrompt,
     ToolResponse,
     ServerManifest,
 )

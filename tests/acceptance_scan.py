@@ -73,7 +73,7 @@ class MCPHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     server = HTTPServer(("127.0.0.1", 9919), MCPHandler)
-    print(f"Mock MCP server on http://127.0.0.1:9919")
+    print("Mock MCP server on http://127.0.0.1:9919")
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 

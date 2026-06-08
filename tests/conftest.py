@@ -1,6 +1,5 @@
 """Configuration and global fixtures for pytest."""
 
-import pytest
 
 from tests.fixtures.clean_server import clean_server
 from tests.fixtures.malicious_server import malicious_server

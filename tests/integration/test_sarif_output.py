@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-import anyio
 import pytest
 from pytest_httpserver import HTTPServer
 
