@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
+
+      - name: Run Ruff (lint)
+        run: poetry run ruff check .
+
+      - name: Run mypy (type check)
+        run: poetry run mypy --strict mcpinspect
+
+      - name: Run pytest with coverage
+        run: poetry run pytest --cov=mcpinspect --cov-fail-under=80
+
+  # Dog-fooding: use mcpinspect to scan its own fixtures
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mcpinspect
+        run: |
+          pip install poetry
+          poetry install
+
+      - name: Start Malicious Fixture Server
+        run: |
+          # We run a small script to start the fixture server and keep it running
+          cat << 'EOF' > start_fixture.py
+          import time
+          from werkzeug.serving import run_simple
+          from pytest_httpserver import HTTPServer
+          from tests.fixtures.malicious_server import malicious_server
+          
+          server = HTTPServer(port=8080)
+          server.start()
+          malicious_server(server)
+          print("Server running on http://localhost:8080")
+          try:
+              while True: time.sleep(1)
+          except KeyboardInterrupt:
+              server.stop()
+          EOF
+          poetry run python start_fixture.py &
+          sleep 3
+
+      - name: Run mcpinspect scan and generate SARIF
+        # We expect this to fail (exit 2) because it's a malicious server, so we use || true
+        run: poetry run mcpinspect scan http://localhost:8080/sse --format sarif --output results.sarif || true
+
+      - name: Upload SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: mcpinspect

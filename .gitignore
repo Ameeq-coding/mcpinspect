@@ -1,0 +1,9 @@
+.venv/
+.tmp-test-venv/
+.coverage
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+mcp-results.sarif
