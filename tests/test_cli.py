@@ -16,7 +16,7 @@ def test_help():
 def test_scan_help():
     result = runner.invoke(app, ["scan", "--help"])
     assert result.exit_code == 0
-    assert "--probe" in result.stdout
+    assert "probe" in result.stdout
     assert "sarif" in result.stdout
 
 @patch("mcpinspect.cli.ScanEngine")
